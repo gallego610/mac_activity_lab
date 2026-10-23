@@ -162,6 +162,58 @@ class LabeledSpinbox(tk.Frame):
         ).pack(fill="x", ipady=5)
 
 
+class CatAnimation(tk.Label):
+    """Gatito ASCII animado: activo cuando el generador corre, estático si no."""
+
+    # Frames del gatito — cada tupla es (línea1, línea2)
+    FRAMES_ACTIVE = [
+        (" /\\_/\\ ", "( ^ω^ )ﾉ"),
+        (" /\\_/\\ ", "( ^ω^ )~"),
+        (" /\\_/\\ ", "( >ω< )ﾉ"),
+        (" /\\_/\\ ", "( ^ω^ )♪"),
+        (" /\\_/\\ ", "( ≧ω≦)ﾉ"),
+        (" /\\_/\\ ", "( ^ω^ )~"),
+    ]
+    FRAME_IDLE = (" /\\_/\\ ", "( -ω- )zzz")
+
+    INTERVAL_MS = 280   # velocidad de animación
+
+    def __init__(self, parent, **kw):
+        super().__init__(parent, bg=BG, fg=ACCENT2,
+                         font=("Courier", 11, "bold"),
+                         justify="left", **kw)
+        self._active     = False
+        self._frame_idx  = 0
+        self._after_id: str | None = None
+        self._render_idle()
+
+    def _render(self, top: str, bot: str):
+        self.configure(text=f"{top}\n{bot}")
+
+    def _render_idle(self):
+        t, b = self.FRAME_IDLE
+        self._render(t, b)
+
+    def _tick(self):
+        if not self._active:
+            return
+        frame = self.FRAMES_ACTIVE[self._frame_idx % len(self.FRAMES_ACTIVE)]
+        self._render(*frame)
+        self._frame_idx += 1
+        self._after_id = self.after(self.INTERVAL_MS, self._tick)
+
+    def set_active(self, active: bool):
+        self._active = active
+        if active:
+            self._frame_idx = 0
+            self._tick()
+        else:
+            if self._after_id:
+                self.after_cancel(self._after_id)
+                self._after_id = None
+            self._render_idle()
+
+
 class StatBadge(tk.Frame):
     def __init__(self, parent, label, variable, value_color=TEXT, **kw):
         super().__init__(parent, bg=CARD2, padx=16, pady=8, **kw)
@@ -224,8 +276,8 @@ class ActivityLab(tk.Tk):
 
         tk.Label(hdr, text=APP_NAME, bg=BG, fg=TEXT,
                  font=("Helvetica", 20, "bold")).pack(side="left")
-        tk.Label(hdr, text="  /  genera actividad en la posición actual del cursor",
-                 bg=BG, fg=TEXT_DIM, font=("Helvetica", 10)).pack(side="left", pady=3)
+        self._cat = CatAnimation(hdr)
+        self._cat.pack(side="left", padx=(16, 0))
 
         # ── Tarjeta de configuración ──────────────────────────────────────────
         card = tk.Frame(outer, bg=CARD, padx=18, pady=14)
@@ -401,6 +453,7 @@ class ActivityLab(tk.Tk):
         self.current_interval = interval
         self.status_var.set("Generando eventos")
         self._status_badge.configure(bg=GREEN, fg=BG)
+        self._cat.set_active(True)
         self.start_button.configure(state="disabled")
         self.stop_button.configure(state="normal")
         self._record("Generador iniciado",
@@ -419,6 +472,7 @@ class ActivityLab(tk.Tk):
             self.stop_event.set()
         self.status_var.set("Inactivo")
         self._status_badge.configure(bg=BORDER, fg=TEXT_DIM)
+        self._cat.set_active(False)
         self.start_button.configure(state="normal")
         self.stop_button.configure(state="disabled")
         self.countdown_var.set("--:--")
