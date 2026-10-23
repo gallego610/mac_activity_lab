@@ -163,42 +163,36 @@ class LabeledSpinbox(tk.Frame):
 
 
 class CatAnimation(tk.Label):
-    """Gatito ASCII animado: activo cuando el generador corre, estático si no."""
+    """Gatito animado: activo cuando el generador corre, estático si no."""
 
-    # Frames del gatito — cada tupla es (línea1, línea2)
     FRAMES_ACTIVE = [
-        (" /\\_/\\ ", "( ^ω^ )ﾉ"),
-        (" /\\_/\\ ", "( ^ω^ )~"),
-        (" /\\_/\\ ", "( >ω< )ﾉ"),
-        (" /\\_/\\ ", "( ^ω^ )♪"),
-        (" /\\_/\\ ", "( ≧ω≦)ﾉ"),
-        (" /\\_/\\ ", "( ^ω^ )~"),
+        "😺 ～",
+        "😸 ♪",
+        "🐱 ！",
+        "😻 ★",
+        "😺 ～",
+        "🐱 ♫",
     ]
-    FRAME_IDLE = (" /\\_/\\ ", "( -ω- )zzz")
+    FRAME_IDLE = "😴  zzz"
 
-    INTERVAL_MS = 280   # velocidad de animación
+    INTERVAL_MS = 400
 
     def __init__(self, parent, **kw):
         super().__init__(parent, bg=BG, fg=ACCENT2,
-                         font=("Courier", 11, "bold"),
-                         justify="left", **kw)
-        self._active     = False
-        self._frame_idx  = 0
+                         font=("Segoe UI Emoji", 14),
+                         justify="left", anchor="w", **kw)
+        self._active    = False
+        self._frame_idx = 0
         self._after_id: str | None = None
-        self._render_idle()
+        self._render(self.FRAME_IDLE)
 
-    def _render(self, top: str, bot: str):
-        self.configure(text=f"{top}\n{bot}")
-
-    def _render_idle(self):
-        t, b = self.FRAME_IDLE
-        self._render(t, b)
+    def _render(self, text: str):
+        self.configure(text=text)
 
     def _tick(self):
         if not self._active:
             return
-        frame = self.FRAMES_ACTIVE[self._frame_idx % len(self.FRAMES_ACTIVE)]
-        self._render(*frame)
+        self._render(self.FRAMES_ACTIVE[self._frame_idx % len(self.FRAMES_ACTIVE)])
         self._frame_idx += 1
         self._after_id = self.after(self.INTERVAL_MS, self._tick)
 
@@ -211,7 +205,7 @@ class CatAnimation(tk.Label):
             if self._after_id:
                 self.after_cancel(self._after_id)
                 self._after_id = None
-            self._render_idle()
+            self._render(self.FRAME_IDLE)
 
 
 class StatBadge(tk.Frame):
