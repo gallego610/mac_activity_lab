@@ -437,13 +437,16 @@ class ActivityLab(tk.Tk):
     def _handle_tick(self, action: str):
         if action == "Generar evento" and PYAUTOGUI_AVAILABLE:
             try:
-                # traducir etiqueta amigable → parámetro pyautogui
                 btn_map = {"izquierdo": "left", "derecho": "right", "central": "middle"}
                 btn     = btn_map.get(self.event_opt_var.get(), "left")
                 qty     = int(self.quantity_var.get())
                 x, y    = pyautogui.position()
                 pyautogui.click(x=x, y=y, button=btn, clicks=qty)
                 detail = f"Tipo: {self.event_opt_var.get()} · cantidad: {qty} · posición: ({x}, {y})"
+            except pyautogui.FailSafeException:
+                self._record("⚡ Failsafe activado", "Generador detenido por failsafe")
+                self.stop()
+                return
             except Exception as exc:
                 detail = f"Error al generar evento: {exc}"
             self._record("Evento generado", detail)
