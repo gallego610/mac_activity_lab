@@ -10,12 +10,16 @@ Aplicación en Python con interfaz gráfica que genera clics reales del mouse en
 
 ```bash
 pip install pyautogui
+# o si usas python3 explícitamente:
+pip3 install pyautogui
 ```
 
 ## Ejecutar
 
 ```bash
 python app.py
+# o
+python3 app.py
 ```
 
 ## Uso
