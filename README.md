@@ -1,6 +1,6 @@
-# Mac Activity Lab
+# Activity Event Generator
 
-Aplicación en Python con interfaz gráfica que genera clics reales del mouse en la posición actual del cursor según un intervalo configurable.
+Aplicación en Python con interfaz gráfica que genera eventos de actividad en la posición actual del cursor según un intervalo configurable.
 
 ## Requisitos
 
@@ -24,21 +24,21 @@ python3 app.py
 
 ## Uso
 
-1. Define el **intervalo** en segundos entre cada clic.
-2. Selecciona la **acción**:
-   - **Clic real del mouse**: ejecuta un clic real en la posición actual del cursor.
-   - **Solo registrar (sin clic)**: registra el evento sin tocar el mouse.
-3. Elige el **botón** del mouse: `left`, `right` o `middle`.
-4. Elige el **nº de clics** por disparo (1–10).
-5. Pulsa **Iniciar**. Cada vez que se cumpla el intervalo, se ejecutará la acción configurada.
+1. Define el **intervalo** en segundos entre cada evento.
+2. Selecciona la **acción al disparar**:
+   - **Generar evento**: ejecuta un evento real en la posición actual del cursor.
+   - **Solo registrar (sin acción)**: registra el evento sin interactuar con el sistema.
+3. Elige el **tipo de evento**: izquierdo, derecho o central.
+4. Elige la **cantidad** de eventos por disparo (1–10).
+5. Pulsa **Iniciar generador**. Cada vez que se cumpla el intervalo se ejecutará la acción configurada.
 6. Pulsa **Detener** cuando termines.
-7. Usa **Exportar registro…** para guardar el historial de eventos como JSON.
+7. Usa **Exportar…** para guardar el historial de eventos como JSON.
 
 ## Seguridad (failsafe)
 
-Mueve el mouse rápidamente a la **esquina superior-izquierda** de la pantalla para abortar cualquier clic en curso. Es el mecanismo de emergencia de pyautogui.
+Lleva el cursor a la **esquina superior-izquierda** de la pantalla para abortar la generación de eventos. Es el mecanismo de emergencia de pyautogui.
 
 ## Estructura
 
-- `app.py`: interfaz y lógica del temporizador.
+- `app.py`: interfaz y lógica del generador.
 - `README.md`: este archivo.
