@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import queue
+import sys
 import threading
 import time
 import tkinter as tk
@@ -19,8 +20,9 @@ except ImportError:
     PYAUTOGUI_AVAILABLE = False
 
 try:
-    from pynput import mouse as _pm, keyboard as _pk
+    from pynput import mouse as _pm, keyboard as _pk  # solo para verificar disponibilidad
     PYNPUT_AVAILABLE = True
+    del _pm, _pk  # no se usan directamente en este proceso
 except ImportError:
     PYNPUT_AVAILABLE = False
 
@@ -46,43 +48,70 @@ ORANGE   = "#ff9f43"
 
 class InactivityMonitor:
     """
-    Escucha eventos globales de teclado y movimiento/clic con pynput.
-    Actualiza `last_activity` cada vez que detecta actividad del usuario.
+    Lanza _activity_probe.py como subproceso aislado.
+    Si pynput mata el proceso (p.ej. permisos macOS), la app principal no se ve afectada.
+    Lee líneas de stdout del subproceso: cada línea es un timestamp de actividad.
     """
 
     def __init__(self):
         self.last_activity: float = time.monotonic()
-        self._mouse_listener    = None
-        self._keyboard_listener = None
-        self._running           = False
-
-    def _touch(self):
-        self.last_activity = time.monotonic()
+        self.error: str | None    = None
+        self._proc                = None
+        self._reader: threading.Thread | None = None
+        self._running             = False
 
     def start(self):
-        if not PYNPUT_AVAILABLE or self._running:
+        if self._running:
             return
-        self._running = True
-        self._mouse_listener = _pm.Listener(
-            on_move=lambda x, y: self._touch(),
-            on_click=lambda x, y, btn, pressed: self._touch(),
-            on_scroll=lambda x, y, dx, dy: self._touch(),
-        )
-        self._keyboard_listener = _pk.Listener(
-            on_press=lambda key: self._touch(),
-        )
-        self._mouse_listener.start()
-        self._keyboard_listener.start()
-
-    def stop(self):
-        if not self._running:
-            return
-        self._running = False
+        self.error = None
         try:
-            self._mouse_listener.stop()
-            self._keyboard_listener.stop()
+            import subprocess
+            self._proc = subprocess.Popen(
+                [sys.executable, str(Path(__file__).resolve()), "--probe"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            # Leer primera línea: debe ser "READY" o "ERROR:..."
+            first = self._proc.stdout.readline().strip()
+            if first.startswith("ERROR") or first == "NO_PYNPUT":
+                self.error = first
+                self._proc.terminate()
+                return
+            if first != "READY":
+                self.error = f"Respuesta inesperada del monitor: {first}"
+                self._proc.terminate()
+                return
+
+            self._running = True
+            self._reader  = threading.Thread(
+                target=self._read_loop, daemon=True)
+            self._reader.start()
+
+        except Exception as exc:
+            self.error   = str(exc)
+            self._running = False
+
+    def _read_loop(self):
+        """Lee timestamps del subproceso y actualiza last_activity."""
+        try:
+            for line in self._proc.stdout:
+                if not self._running:
+                    break
+                line = line.strip()
+                if line:
+                    self.last_activity = time.monotonic()
         except Exception:
             pass
+
+    def stop(self):
+        self._running = False
+        if self._proc:
+            try:
+                self._proc.terminate()
+            except Exception:
+                pass
+            self._proc = None
 
     @property
     def seconds_idle(self) -> float:
@@ -270,11 +299,11 @@ class ActivityLab(tk.Tk):
         self._gen_running        = False   # True cuando el generador está activo
 
         # variables UI
-        self.interval_var        = tk.StringVar(value="60")
+        self.interval_var        = tk.StringVar(value="120")
         self.event_type_var      = tk.StringVar(value="Generar evento")
         self.event_opt_var       = tk.StringVar(value="izquierdo")
         self.quantity_var        = tk.StringVar(value="1")
-        self.inactivity_var      = tk.StringVar(value="120")  # segundos de inactividad
+        self.inactivity_var      = tk.StringVar(value="180")  # segundos de inactividad
         self.status_var          = tk.StringVar(value="Inactivo")
         self.counter_var         = tk.StringVar(value="0")
         self.elapsed_var         = tk.StringVar(value="00:00:00")
@@ -567,9 +596,12 @@ class ActivityLab(tk.Tk):
     # ── lógica inactividad ────────────────────────────────────────────────────
 
     def _start_inactivity_watch(self):
-        """Inicia el monitor de inactividad y el watcher en background."""
         if not PYNPUT_AVAILABLE:
+            messagebox.showerror(
+                "pynput no disponible",
+                "Instala pynput para usar esta función:\n\npip install pynput")
             return
+
         try:
             idle_secs = int(self.inactivity_var.get())
             if idle_secs < 5:
@@ -582,10 +614,22 @@ class ActivityLab(tk.Tk):
         self._inactivity_active = True
         self._inactivity_monitor.reset()
         self._inactivity_monitor.start()
+
+        # Verificar si los listeners arrancaron correctamente
+        if self._inactivity_monitor.error:
+            self._inactivity_active = False
+            messagebox.showerror(
+                "Error al iniciar el monitor",
+                f"No se pudo iniciar la detección de actividad.\n\n"
+                f"En macOS asegúrate de otorgar permisos en:\n"
+                f"Preferencias del Sistema → Privacidad → Accesibilidad\n"
+                f"y también en Monitorización de entrada.\n\n"
+                f"Detalle: {self._inactivity_monitor.error}")
+            return
+
         self._record("Inicio automático activado",
                      f"Espera previa configurada: {idle_secs} s")
 
-        # hilo watcher
         self._idle_watcher = threading.Thread(
             target=self._idle_watch_loop, daemon=True)
         self._idle_watcher.start()
@@ -732,4 +776,36 @@ class ActivityLab(tk.Tk):
 
 
 if __name__ == "__main__":
-    ActivityLab().mainloop()
+    # Modo probe: lanzado como subproceso por InactivityMonitor
+    if len(sys.argv) > 1 and sys.argv[1] == "--probe":
+        try:
+            from pynput import mouse as _pm, keyboard as _pk
+        except ImportError:
+            print("NO_PYNPUT", flush=True)
+            sys.exit(1)
+
+        class ActivityProbe:
+            def _touch(self, *args):
+                print(time.monotonic(), flush=True)
+
+            def run(self):
+                try:
+                    ml = _pm.Listener(
+                        on_move=self._touch,
+                        on_click=self._touch,
+                        on_scroll=self._touch,
+                    )
+                    kl = _pk.Listener(on_press=self._touch)
+                    ml.start()
+                    kl.start()
+                    print("READY", flush=True)
+                    ml.join()
+                except Exception as e:
+                    print(f"ERROR:{e}", flush=True)
+                    sys.exit(1)
+
+        ActivityProbe().run()
+
+    else:
+        # Modo normal: lanzar la app
+        ActivityLab().mainloop()

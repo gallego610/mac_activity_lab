@@ -40,5 +40,5 @@ Lleva el cursor a la **esquina superior-izquierda** de la pantalla para abortar 
 
 ## Estructura
 
-- `app.py`: interfaz y lógica del generador.
+- `app.py`: interfaz, lógica del generador y detector de actividad.
 - `README.md`: este archivo.
