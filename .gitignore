@@ -1,1 +1,3 @@
 __pycache__/
+electron/node_modules/
+*.class

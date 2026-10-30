@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Activity Event Generator</title>
+  <style>
+    /* ── Reset & variables ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1117;
+      --card:     #1a1d27;
+      --card2:    #22263a;
+      --border:   #2e3250;
+      --accent:   #6c63ff;
+      --accent2:  #00d4aa;
+      --accent3:  #ff6b6b;
+      --text:     #e8eaf6;
+      --dim:      #7b82b0;
+      --green:    #4caf8a;
+      --yellow:   #f5c842;
+      --orange:   #ff9f43;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────────────── */
+    .outer {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 18px 22px;
+      gap: 10px;
+      overflow: hidden;
+      /* espacio para titlebar macOS */
+      padding-top: max(18px, env(safe-area-inset-top, 18px));
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+    .header h1 { font-size: 20px; font-weight: 700; }
+    .cat {
+      font-size: 18px;
+      margin-left: 12px;
+      min-width: 60px;
+    }
+
+    /* ── Tarjetas ────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 14px 18px;
+    }
+    .card-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 10px;
+    }
+    .card-title.accent  { color: var(--accent); }
+    .card-title.orange  { color: var(--orange); }
+
+    .fields {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .fields-2 {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .field label {
+      display: block;
+      color: var(--dim);
+      font-size: 9px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .field input,
+    .field select {
+      width: 100%;
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+      padding: 6px 8px;
+      outline: none;
+      appearance: none;
+    }
+    .field input:focus,
+    .field select:focus { border-color: var(--accent); }
+    .field select { cursor: pointer; }
+
+    .hint {
+      color: var(--dim);
+      font-size: 11px;
+      line-height: 1.5;
+      align-self: center;
+    }
+
+    .warn { color: var(--yellow); font-size: 11px; margin-top: 8px; }
+
+    /* ── Botones ─────────────────────────────────────────────────────────── */
+    .buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .btn {
+      border: none;
+      border-radius: 8px;
+      padding: 0 20px;
+      height: 38px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--text);
+      transition: filter .15s, opacity .15s;
+      white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) { filter: brightness(1.15); }
+    .btn:disabled { opacity: .4; cursor: default; }
+
+    .btn-accent  { background: var(--accent); }
+    .btn-orange  { background: var(--orange); }
+    .btn-stop    { background: var(--accent3); }
+    .btn-muted   { background: var(--border); }
+
+    /* ── Badges de estado ────────────────────────────────────────────────── */
+    .badges {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .badge {
+      background: var(--card2);
+      border-radius: 8px;
+      padding: 8px 14px;
+    }
+    .badge-label {
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--dim);
+      margin-bottom: 2px;
+    }
+    .badge-value {
+      font-size: 15px;
+      font-weight: 700;
+    }
+    #status-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--dim);
+      padding: 8px 14px;
+    }
+
+    /* ── Registro ────────────────────────────────────────────────────────── */
+    .log-card {
+      background: var(--card);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+    }
+    .log-header {
+      padding: 10px 14px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+    }
+    .log-cols {
+      display: grid;
+      grid-template-columns: 175px 190px 1fr;
+      padding: 5px 14px;
+      background: var(--border);
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .log-body {
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) var(--card);
+    }
+    .log-row {
+      display: grid;
+      grid-template-columns: 175px 190px 1fr;
+      padding: 5px 14px;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .log-row:nth-child(even) { background: var(--card2); }
+    .log-row .ts  { color: var(--dim); }
+    .log-row .ev  { color: var(--accent2); }
+    .log-row .det { color: var(--text); }
+
+    /* ── Pie ─────────────────────────────────────────────────────────────── */
+    .footer {
+      font-size: 8px;
+      color: var(--dim);
+      padding-top: 4px;
+    }
+  </style>
+</head>
+<body>
+<div class="outer">
+
+  <!-- Encabezado -->
+  <div class="header">
+    <div class="dot"></div>
+    <h1>Activity Event Generator</h1>
+    <div class="cat" id="cat">😴 zzz</div>
+  </div>
+
+  <!-- Config evento -->
+  <div class="card">
+    <div class="card-title accent">Configuración del evento</div>
+    <div class="fields">
+      <div class="field">
+        <label>Intervalo (segundos)</label>
+        <input type="number" id="interval" value="120" min="1" max="86400" />
+      </div>
+      <div class="field">
+        <label>Acción al disparar</label>
+        <select id="action">
+          <option value="Generar evento">Generar evento</option>
+          <option value="solo">Solo registrar (sin acción)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Tipo de evento</label>
+        <select id="event-type">
+          <option value="izquierdo">izquierdo</option>
+          <option value="derecho">derecho</option>
+          <option value="central">central</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Cantidad</label>
+        <input type="number" id="quantity" value="1" min="1" max="10" />
+      </div>
+    </div>
+    <div class="warn" id="nut-warn" style="display:none">
+      ⚠ @nut-tree-fork/nut-js no instalado — npm install @nut-tree-fork/nut-js
+    </div>
+  </div>
+
+  <!-- Temporizador inteligente -->
+  <div class="card">
+    <div class="card-title orange">Temporizador inteligente</div>
+    <div class="fields-2">
+      <div class="field">
+        <label>Espera previa (segundos)</label>
+        <input type="number" id="idle-secs" value="180" min="5" max="86400" />
+      </div>
+      <p class="hint">
+        El generador aguarda este tiempo antes de iniciar.<br>
+        Si se detecta actividad, reinicia la espera.
+      </p>
+    </div>
+    <div class="warn" id="uio-warn" style="display:none">
+      ⚠ uiohook-napi no instalado — npm install uiohook-napi
+    </div>
+  </div>
+
+  <!-- Botones -->
+  <div class="buttons">
+    <button class="btn btn-accent" id="btn-start">▶  Iniciar generador</button>
+    <button class="btn btn-orange" id="btn-auto">⏱  Inicio automático</button>
+    <button class="btn btn-stop"   id="btn-stop"  disabled>⏹  Detener</button>
+    <button class="btn btn-muted"  id="btn-export">Exportar…</button>
+    <button class="btn btn-muted"  id="btn-clear">Limpiar</button>
+  </div>
+
+  <!-- Badges -->
+  <div class="badges">
+    <div id="status-badge">Inactivo</div>
+    <div class="badge">
+      <div class="badge-label">Eventos generados</div>
+      <div class="badge-value" id="b-count" style="color:var(--accent)">0</div>
+    </div>
+    <div class="badge">
+      <div class="badge-label">Tiempo activo</div>
+      <div class="badge-value" id="b-elapsed">00:00:00</div>
+    </div>
+    <div class="badge">
+      <div class="badge-label">Próximo evento en</div>
+      <div class="badge-value" id="b-next" style="color:var(--accent2)">--:--</div>
+    </div>
+    <div class="badge">
+      <div class="badge-label">Inicio automático en</div>
+      <div class="badge-value" id="b-idle" style="color:var(--orange)">--:--</div>
+    </div>
+  </div>
+
+  <!-- Registro -->
+  <div class="log-card">
+    <div class="log-header">Registro de eventos generados</div>
+    <div class="log-cols">
+      <span>Hora</span><span>Evento generado</span><span>Detalle</span>
+    </div>
+    <div class="log-body" id="log-body"></div>
+  </div>
+
+  <div class="footer">
+    ⚡ Failsafe: lleva el cursor a la esquina superior-izquierda para abortar.
+  </div>
+
+</div>
+<script src="renderer.js"></script>
+</body>
+</html>
